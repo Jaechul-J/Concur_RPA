@@ -1,0 +1,92 @@
+Sub CopyDataAndSendEmail()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim lastCol As Long
+    Dim outlookApp As Object
+    Dim outlookMail As Object
+    Dim emailBody As String
+    Dim currentDate As String
+    
+    ' Get current date in yyyy/mm/dd format
+    currentDate = Format(Now, "yyyy/mm/dd")
+    
+    ' Initialize email body with Korean greeting and current date
+    emailBody = "<html><body><p>Good Morning, this is Concur RPA reporting.<br><br>" & currentDate & " Concur Card Feed Import is as follows.</p>"
+    
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Worksheets
+        ' Find the last used row and column in the worksheet
+        lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+        lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+        
+        ' Check if cell A2 is not empty
+        If ws.Range("A2").Value <> "" Then
+            ' Append worksheet name as a heading with reduced font size
+            emailBody = emailBody & "<h2 style='font-size: 15px;'>" & ws.Name & "</h2>"
+            
+            ' Copy data from A1 to the last used row and column
+            Dim dataRange As Range
+            Set dataRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
+            
+            ' Convert data range to HTML table and append to email body
+            emailBody = emailBody & RangeToHTMLTable(dataRange, True) & "<br><br>"
+        End If
+    Next ws
+    
+    ' Add closing remarks
+    emailBody = emailBody & "<p>Much Appreciated.<br>Concur RPA</p></body></html>"
+    
+    ' Create Outlook application object
+    Set outlookApp = CreateObject("Outlook.Application")
+    Set outlookMail = outlookApp.CreateItem(0)
+    
+    ' Set recipients and CC
+    With outlookMail
+         .To = "jaecjung@deloitte.com"
+        '.To = "mjeong3@deloitte.com; sangyoo@deloitte.com"
+        '.CC = "kritsapsupport@deloitte.com; kikwon@deloitte.com"
+        .Subject = currentDate + " Concur Card Feed Import Status"
+        .HTMLBody = emailBody
+        .Display  ' Display email for review
+        .Send  ' Uncomment this line to send email automatically
+    End With
+    
+    ' Release Outlook objects
+    Set outlookMail = Nothing
+    Set outlookApp = Nothing
+End Sub
+
+Function RangeToHTMLTable(rng As Range, isFirstRowHeader As Boolean) As String
+    Dim htmlTable As String
+    Dim row As Range
+    Dim col As Range
+    Dim dateValue As String
+    
+    htmlTable = "<table border='1' cellpadding='5' cellspacing='0' style='font-size: 12px;'>"
+    
+    ' Loop through each row in the range
+    For Each row In rng.Rows
+        htmlTable = htmlTable & "<tr>"
+        ' Loop through each cell in the row
+        For Each col In row.Cells
+            If isFirstRowHeader And row.Row = rng.Row Then
+                ' Add CSS style for header row with darker green background color
+                htmlTable = htmlTable & "<th style='background-color: #B0E57C;'>" & col.Value & "</th>"
+            Else
+                ' Regular data cell
+                If col.Column = rng.Column Then
+                    ' Format date in the first column
+                    dateValue = Format(col.Value, "yyyy/mm/dd")
+                    htmlTable = htmlTable & "<td>" & dateValue & "</td>"
+                Else
+                    htmlTable = htmlTable & "<td>" & col.Value & "</td>"
+                End If
+            End If
+        Next col
+        htmlTable = htmlTable & "</tr>"
+    Next row
+    
+    htmlTable = htmlTable & "</table>"
+    
+    RangeToHTMLTable = htmlTable
+End Function
